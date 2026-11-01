@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <stdio.h>
 #include <string.h>
 
 /* USER CODE END Includes */
@@ -59,9 +60,56 @@ void SystemClock_Config(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
+
 /* USER CODE BEGIN 0 */
 
+static void uart_print(const char *text)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t *)text,
+                      (uint16_t)strlen(text), 1000);
+}
+
+static uint16_t read_adc(uint32_t channel)
+{
+    ADC_ChannelConfTypeDef config = {0};
+
+    config.Channel = channel;
+    config.Rank = ADC_REGULAR_RANK_1;
+    config.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+
+    if (HAL_ADC_ConfigChannel(&hadc1, &config) != HAL_OK)
+        return 0;
+
+    if (HAL_ADC_Start(&hadc1) != HAL_OK)
+        return 0;
+
+    uint16_t value = 0;
+
+    if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK)
+        value = (uint16_t)HAL_ADC_GetValue(&hadc1);
+
+    HAL_ADC_Stop(&hadc1);
+    return value;
+}
+
+static uint16_t adc_to_pulse(uint16_t value)
+{
+    return (uint16_t)(1000U + ((uint32_t)value * 1000U) / 4095U);
+}
+
+static uint16_t adc_to_angle(uint16_t value)
+{
+    return (uint16_t)(((uint32_t)value * 180U) / 4095U);
+}
+
+static void set_servo_positions(uint16_t x, uint16_t y)
+{
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, x);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, y);
+}
+
 /* USER CODE END 0 */
+
 
 /**
   * @brief  The application entry point.
@@ -95,12 +143,35 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
-  /* USER CODE BEGIN 2 */
+  
+/* USER CODE BEGIN 2 */
 
-  char msg[] = "Hello, Wokwi!\r\n";
-  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+uart_print("\r\n=== STM32 HELIOSTAT ===\r\n");
+uart_print("System initialization\r\n");
 
-  /* USER CODE END 2 */
+HAL_ADCEx_Calibration_Start(&hadc1);
+
+if (HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
+    Error_Handler();
+
+if (HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2) != HAL_OK)
+    Error_Handler();
+
+set_servo_positions(1500, 1500);
+
+uint8_t oled_found =
+    HAL_I2C_IsDeviceReady(&hi2c1, 0x3C << 1, 2, 100) == HAL_OK;
+
+uart_print(oled_found ? "OLED: FOUND\r\n" : "OLED: NOT FOUND\r\n");
+
+uint8_t automatic_mode = 1;
+uint8_t previous_button = 1;
+uint32_t last_button_time = 0;
+uint32_t last_update = 0;
+uint32_t tick = 0;
+
+/* USER CODE END 2 */
+
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -109,6 +180,56 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    
+    uint32_t now = HAL_GetTick();
+
+    uint8_t button =
+        HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8) == GPIO_PIN_SET;
+
+    if (previous_button && !button &&
+        now - last_button_time >= 200U)
+    {
+        automatic_mode = !automatic_mode;
+        last_button_time = now;
+
+        uart_print(automatic_mode ?
+                   "MODE: AUTO\r\n" :
+                   "MODE: STANDBY\r\n");
+    }
+
+    previous_button = button;
+
+    if (now - last_update >= 1000U)
+    {
+        last_update = now;
+
+        uint16_t light_x = read_adc(ADC_CHANNEL_0);
+        uint16_t light_y = read_adc(ADC_CHANNEL_1);
+
+        if (automatic_mode)
+        {
+            set_servo_positions(
+                adc_to_pulse(light_x),
+                adc_to_pulse(light_y)
+            );
+        }
+
+        char buffer[160];
+
+        snprintf(buffer, sizeof(buffer),
+                 "tick %lu | X=%u Y=%u | "
+                 "angleX=%u angleY=%u | mode=%s\r\n",
+                 (unsigned long)++tick,
+                 light_x, light_y,
+                 adc_to_angle(light_x),
+                 adc_to_angle(light_y),
+                 automatic_mode ? "AUTO" : "STANDBY");
+
+        uart_print(buffer);
+    }
+
+    HAL_Delay(10);
+
   }
   /* USER CODE END 3 */
 }
