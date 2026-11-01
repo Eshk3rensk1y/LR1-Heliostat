@@ -1,19 +1,90 @@
+
 {
   "version": 1,
-  "author": "Uri Shaked",
+  "author": "LR1 Heliostat",
   "editor": "wokwi",
   "parts": [
     {
       "type": "board-st-nucleo-c031c6",
       "id": "nucleo",
-      "top": -37.71,
-      "left": -264.45,
+      "top": 80,
+      "left": 50,
       "attrs": {}
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "lightX",
+      "top": -160,
+      "left": -260,
+      "attrs": { "value": "512" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "lightY",
+      "top": -160,
+      "left": -70,
+      "attrs": { "value": "512" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servoX",
+      "top": 80,
+      "left": 440,
+      "attrs": { "horn": "single" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servoY",
+      "top": 250,
+      "left": 440,
+      "attrs": { "horn": "single" }
+    },
+    {
+      "type": "board-ssd1306",
+      "id": "oled",
+      "top": -170,
+      "left": 200,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "modeButton",
+      "top": 350,
+      "left": -230,
+      "attrs": {
+        "color": "green",
+        "label": "MODE",
+        "bounce": "0"
+      }
     }
   ],
   "connections": [
     [ "$serialMonitor:TX", "nucleo:PA3", "", [] ],
-    [ "$serialMonitor:RX", "nucleo:PA2", "", [] ]
+    [ "$serialMonitor:RX", "nucleo:PA2", "", [] ],
+
+    [ "lightX:VCC", "nucleo:3V3", "red", [] ],
+    [ "lightX:GND", "nucleo:GND.1", "black", [] ],
+    [ "lightX:SIG", "nucleo:PA0", "green", [] ],
+
+    [ "lightY:VCC", "nucleo:3V3", "red", [] ],
+    [ "lightY:GND", "nucleo:GND.1", "black", [] ],
+    [ "lightY:SIG", "nucleo:PA1", "green", [] ],
+
+    [ "servoX:V+", "nucleo:5V", "red", [] ],
+    [ "servoX:GND", "nucleo:GND.1", "black", [] ],
+    [ "servoX:PWM", "nucleo:PA6", "orange", [] ],
+
+    [ "servoY:V+", "nucleo:5V", "red", [] ],
+    [ "servoY:GND", "nucleo:GND.1", "black", [] ],
+    [ "servoY:PWM", "nucleo:PA7", "orange", [] ],
+
+    [ "oled:VCC", "nucleo:3V3", "red", [] ],
+    [ "oled:GND", "nucleo:GND.1", "black", [] ],
+    [ "oled:SCL", "nucleo:PB8", "blue", [] ],
+    [ "oled:SDA", "nucleo:PB9", "green", [] ],
+
+    [ "modeButton:1.l", "nucleo:PA8", "green", [] ],
+    [ "modeButton:2.l", "nucleo:GND.1", "black", [] ]
   ],
   "dependencies": {}
 }
