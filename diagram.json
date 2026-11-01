@@ -72,11 +72,11 @@
 
     [ "servoX:V+", "nucleo:5V", "red", [] ],
     [ "servoX:GND", "nucleo:GND.1", "black", [] ],
-    [ "servoX:PWM", "nucleo:PA6", "orange", [] ],
+    [ "servoX:PWM", "nucleo:PB4", "orange", [] ],
 
     [ "servoY:V+", "nucleo:5V", "red", [] ],
     [ "servoY:GND", "nucleo:GND.1", "black", [] ],
-    [ "servoY:PWM", "nucleo:PA7", "orange", [] ],
+    [ "servoY:PWM", "nucleo:PB5", "orange", [] ],
 
     [ "oled:VCC", "nucleo:3V3", "red", [] ],
     [ "oled:GND", "nucleo:GND.1", "black", [] ],

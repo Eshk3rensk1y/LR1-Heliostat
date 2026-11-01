@@ -1,0 +1,29 @@
+[1mdiff --git a/diagram.json b/diagram.json[m
+[1mindex 3c43d5a..7d81947 100644[m
+[1m--- a/diagram.json[m
+[1m+++ b/diagram.json[m
+[36m@@ -1,4 +1,4 @@[m
+[31m-[m
+[32m+[m[32m﻿[m
+ {[m
+   "version": 1,[m
+   "author": "LR1 Heliostat",[m
+[36m@@ -72,11 +72,11 @@[m
+ [m
+     [ "servoX:V+", "nucleo:5V", "red", [] ],[m
+     [ "servoX:GND", "nucleo:GND.1", "black", [] ],[m
+[31m-    [ "servoX:PWM", "nucleo:PA6", "orange", [] ],[m
+[32m+[m[32m    [ "servoX:PWM", "nucleo:PB4", "orange", [] ],[m
+ [m
+     [ "servoY:V+", "nucleo:5V", "red", [] ],[m
+     [ "servoY:GND", "nucleo:GND.1", "black", [] ],[m
+[31m-    [ "servoY:PWM", "nucleo:PA7", "orange", [] ],[m
+[32m+[m[32m    [ "servoY:PWM", "nucleo:PB5", "orange", [] ],[m
+ [m
+     [ "oled:VCC", "nucleo:3V3", "red", [] ],[m
+     [ "oled:GND", "nucleo:GND.1", "black", [] ],[m
+[36m@@ -89,3 +89,4 @@[m
+   "dependencies": {}[m
+ }[m
+ [m
+[41m+[m
