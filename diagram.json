@@ -56,9 +56,26 @@
         "label": "MODE",
         "bounce": "0"
       }
-    }
+    },
+    {
+      "type": "wokwi-logic-analyzer",
+      "id": "logic1",
+      "top": 450,
+      "left": 100,
+      "attrs": {
+        "channelNames": "PWM_X,PWM_Y,I2C_SCL,I2C_SDA"
+      }
+}
+
+    
   ],
   "connections": [
+    
+    [ "logic1:D0", "nucleo:PB4", "purple", [] ],
+    [ "logic1:D1", "nucleo:PB5", "orange", [] ],
+    [ "logic1:D2", "nucleo:PB8", "blue", [] ],
+    [ "logic1:D3", "nucleo:PB9", "green", [] ],
+
     [ "$serialMonitor:TX", "nucleo:PA3", "", [] ],
     [ "$serialMonitor:RX", "nucleo:PA2", "", [] ],
 
