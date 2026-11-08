@@ -200,3 +200,19 @@ clean:
 -include $(wildcard $(BUILD_DIR)/*.d)
 
 # *** EOF ***
+
+IMAGE = stm32-build
+
+.PHONY: image build flash monitor
+
+image:
+	docker build -t $(IMAGE) ./docker
+
+build:
+	docker run --rm -v "$(CURDIR):/workspace" -w /workspace $(IMAGE) make -B all
+
+flash:
+	@echo "Start Wokwi Simulator in VS Code to load the firmware"
+
+monitor:
+	@echo "Open Wokwi Terminal in VS Code to view UART output"
