@@ -170,6 +170,38 @@ uint32_t last_button_time = 0;
 uint32_t last_update = 0;
 uint32_t tick = 0;
 
+uart_print("\r\n=== HELIOSTAT SELF-TEST ===\r\n");
+
+char test_msg[128];
+
+uint16_t test_adc_x = read_adc(ADC_CHANNEL_0);
+uint16_t test_adc_y = read_adc(ADC_CHANNEL_1);
+
+snprintf(test_msg, sizeof(test_msg),
+          "SELFTEST,ADC_X,SAMPLE,%u\r\n", test_adc_x);
+uart_print(test_msg);
+
+snprintf(test_msg, sizeof(test_msg),
+          "SELFTEST,ADC_Y,SAMPLE,%u\r\n", test_adc_y);
+uart_print(test_msg);
+
+uart_print("SELFTEST,PWM_X,STARTED\r\n");
+uart_print("SELFTEST,PWM_Y,STARTED\r\n");
+
+uart_print(oled_found ?
+            "SELFTEST,OLED,ACK\r\n" :
+            "SELFTEST,OLED,NO_ACK\r\n");
+
+GPIO_PinState button_state =
+    HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);
+
+snprintf(test_msg, sizeof(test_msg),
+          "SELFTEST,BUTTON,LEVEL,%u\r\n",
+          button_state == GPIO_PIN_SET ? 1U : 0U);
+uart_print(test_msg);
+
+uart_print("SELFTEST,END\r\n\r\n");
+
 /* USER CODE END 2 */
 
 
