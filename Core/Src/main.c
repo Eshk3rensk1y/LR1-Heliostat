@@ -29,6 +29,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "heliostat_logic.h"
 
 /* USER CODE END Includes */
 
@@ -92,15 +93,6 @@ static uint16_t read_adc(uint32_t channel)
     return value;
 }
 
-static uint16_t adc_to_pulse(uint16_t value)
-{
-    return (uint16_t)(1000U + ((uint32_t)value * 1000U) / 4095U);
-}
-
-static uint16_t adc_to_angle(uint16_t value)
-{
-    return (uint16_t)(((uint32_t)value * 180U) / 4095U);
-}
 
 static void set_servo_positions(uint16_t x, uint16_t y)
 {
@@ -157,14 +149,21 @@ if (HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
 if (HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2) != HAL_OK)
     Error_Handler();
 
-set_servo_positions(1500, 1500);
+
+HeliostatState heliostat;
+heliostat_init(&heliostat);
+
+set_servo_positions(
+    heliostat.pulse_x,
+    heliostat.pulse_y
+);
+
 
 uint8_t oled_found =
     HAL_I2C_IsDeviceReady(&hi2c1, 0x3C << 1, 2, 100) == HAL_OK;
 
 uart_print(oled_found ? "OLED: FOUND\r\n" : "OLED: NOT FOUND\r\n");
 
-uint8_t automatic_mode = 1;
 uint8_t previous_button = 1;
 uint32_t last_button_time = 0;
 uint32_t last_update = 0;
@@ -221,10 +220,10 @@ uart_print("SELFTEST,END\r\n\r\n");
     if (previous_button && !button &&
         now - last_button_time >= 200U)
     {
-        automatic_mode = !automatic_mode;
+        heliostat_toggle_mode(&heliostat);
         last_button_time = now;
 
-        uart_print(automatic_mode ?
+        uart_print(heliostat.mode == HELIOSTAT_AUTO ?
                    "MODE: AUTO\r\n" :
                    "MODE: STANDBY\r\n");
     }
@@ -235,29 +234,43 @@ uart_print("SELFTEST,END\r\n\r\n");
     {
         last_update = now;
 
+
         uint16_t light_x = read_adc(ADC_CHANNEL_0);
         uint16_t light_y = read_adc(ADC_CHANNEL_1);
 
-        if (automatic_mode)
+        heliostat_update(
+            &heliostat,
+            light_x,
+            light_y
+        );
+
+        if (heliostat.mode == HELIOSTAT_AUTO)
         {
             set_servo_positions(
-                adc_to_pulse(light_x),
-                adc_to_pulse(light_y)
+                heliostat.pulse_x,
+                heliostat.pulse_y
             );
         }
 
         char buffer[160];
 
-        snprintf(buffer, sizeof(buffer),
-                 "tick %lu | X=%u Y=%u | "
-                 "angleX=%u angleY=%u | mode=%s\r\n",
-                 (unsigned long)++tick,
-                 light_x, light_y,
-                 adc_to_angle(light_x),
-                 adc_to_angle(light_y),
-                 automatic_mode ? "AUTO" : "STANDBY");
+        snprintf(
+            buffer,
+            sizeof(buffer),
+            "tick %lu | X=%u Y=%u | "
+            "angleX=%u angleY=%u | mode=%s\r\n",
+            (unsigned long)++tick,
+            (unsigned int)heliostat.adc_x,
+            (unsigned int)heliostat.adc_y,
+            (unsigned int)heliostat.angle_x,
+            (unsigned int)heliostat.angle_y,
+            heliostat.mode == HELIOSTAT_AUTO
+                ? "AUTO"
+                : "STANDBY"
+        );
 
         uart_print(buffer);
+
     }
 
     HAL_Delay(10);

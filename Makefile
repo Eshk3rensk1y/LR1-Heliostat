@@ -66,7 +66,8 @@ Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_adc_ex.c \
 Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_tim.c \
 Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_tim_ex.c \
 Core/Src/sysmem.c \
-Core/Src/syscalls.c
+Core/Src/syscalls.c \
+App/Src/heliostat_logic.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -127,7 +128,9 @@ C_INCLUDES =  \
 -IDrivers/STM32C0xx_HAL_Driver/Inc \
 -IDrivers/STM32C0xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32C0xx/Include \
--IDrivers/CMSIS/Include
+-IDrivers/CMSIS/Include \
+-IApp/Inc
+
 
 
 # compile gcc flags
@@ -216,3 +219,9 @@ flash:
 
 monitor:
 	@echo "Open Wokwi Terminal in VS Code to view UART output"
+
+.PHONY: test
+
+test:
+	docker run --rm -v "$(CURDIR):/workspace" -w /workspace stm32-build sh -c "gcc -std=c11 -Wall -Wextra -Werror -IApp/Inc App/Src/heliostat_logic.c tests/test_heliostat_logic.c -o /tmp/test_heliostat && /tmp/test_heliostat"
+
