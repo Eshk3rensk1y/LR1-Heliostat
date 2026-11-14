@@ -18,10 +18,16 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
+#include "i2c.h"
+#include "tim.h"
+#include "usart.h"
+#include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include <stdio.h>
 #include <string.h>
 
 /* USER CODE END Includes */
@@ -43,27 +49,67 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-I2C_HandleTypeDef hi2c1;
-
-UART_HandleTypeDef huart2;
-
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
+
 /* USER CODE BEGIN 0 */
 
+static void uart_print(const char *text)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t *)text,
+                      (uint16_t)strlen(text), 1000);
+}
+
+static uint16_t read_adc(uint32_t channel)
+{
+    ADC_ChannelConfTypeDef config = {0};
+
+    config.Channel = channel;
+    config.Rank = ADC_REGULAR_RANK_1;
+    config.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
+
+    if (HAL_ADC_ConfigChannel(&hadc1, &config) != HAL_OK)
+        return 0;
+
+    if (HAL_ADC_Start(&hadc1) != HAL_OK)
+        return 0;
+
+    uint16_t value = 0;
+
+    if (HAL_ADC_PollForConversion(&hadc1, 100) == HAL_OK)
+        value = (uint16_t)HAL_ADC_GetValue(&hadc1);
+
+    HAL_ADC_Stop(&hadc1);
+    return value;
+}
+
+static uint16_t adc_to_pulse(uint16_t value)
+{
+    return (uint16_t)(1000U + ((uint32_t)value * 1000U) / 4095U);
+}
+
+static uint16_t adc_to_angle(uint16_t value)
+{
+    return (uint16_t)(((uint32_t)value * 180U) / 4095U);
+}
+
+static void set_servo_positions(uint16_t x, uint16_t y)
+{
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, x);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, y);
+}
+
 /* USER CODE END 0 */
+
 
 /**
   * @brief  The application entry point.
@@ -95,12 +141,37 @@ int main(void)
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_USART2_UART_Init();
-  /* USER CODE BEGIN 2 */
+  MX_ADC1_Init();
+  MX_TIM3_Init();
+  
+/* USER CODE BEGIN 2 */
 
-  char msg[] = "Hello, Wokwi!\r\n";
-  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+uart_print("\r\n=== STM32 HELIOSTAT ===\r\n");
+uart_print("System initialization\r\n");
 
-  /* USER CODE END 2 */
+HAL_ADCEx_Calibration_Start(&hadc1);
+
+if (HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1) != HAL_OK)
+    Error_Handler();
+
+if (HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2) != HAL_OK)
+    Error_Handler();
+
+set_servo_positions(1500, 1500);
+
+uint8_t oled_found =
+    HAL_I2C_IsDeviceReady(&hi2c1, 0x3C << 1, 2, 100) == HAL_OK;
+
+uart_print(oled_found ? "OLED: FOUND\r\n" : "OLED: NOT FOUND\r\n");
+
+uint8_t automatic_mode = 1;
+uint8_t previous_button = 1;
+uint32_t last_button_time = 0;
+uint32_t last_update = 0;
+uint32_t tick = 0;
+
+/* USER CODE END 2 */
+
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -109,6 +180,56 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    
+    uint32_t now = HAL_GetTick();
+
+    uint8_t button =
+        HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8) == GPIO_PIN_SET;
+
+    if (previous_button && !button &&
+        now - last_button_time >= 200U)
+    {
+        automatic_mode = !automatic_mode;
+        last_button_time = now;
+
+        uart_print(automatic_mode ?
+                   "MODE: AUTO\r\n" :
+                   "MODE: STANDBY\r\n");
+    }
+
+    previous_button = button;
+
+    if (now - last_update >= 1000U)
+    {
+        last_update = now;
+
+        uint16_t light_x = read_adc(ADC_CHANNEL_0);
+        uint16_t light_y = read_adc(ADC_CHANNEL_1);
+
+        if (automatic_mode)
+        {
+            set_servo_positions(
+                adc_to_pulse(light_x),
+                adc_to_pulse(light_y)
+            );
+        }
+
+        char buffer[160];
+
+        snprintf(buffer, sizeof(buffer),
+                 "tick %lu | X=%u Y=%u | "
+                 "angleX=%u angleY=%u | mode=%s\r\n",
+                 (unsigned long)++tick,
+                 light_x, light_y,
+                 adc_to_angle(light_x),
+                 adc_to_angle(light_y),
+                 automatic_mode ? "AUTO" : "STANDBY");
+
+        uart_print(buffer);
+    }
+
+    HAL_Delay(10);
+
   }
   /* USER CODE END 3 */
 }
@@ -147,131 +268,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x20303E5D;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analogue filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
-
-/**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
-
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOF_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Led_GPIO_Port, Led_Pin, GPIO_PIN_SET);
-
-  /*Configure GPIO pin : User_Button_Pin */
-  GPIO_InitStruct.Pin = User_Button_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(User_Button_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : Led_Pin */
-  GPIO_InitStruct.Pin = Led_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(Led_GPIO_Port, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
