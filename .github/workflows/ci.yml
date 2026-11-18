@@ -38,6 +38,17 @@ jobs:
       - name: Run unit tests
         run: make test
 
+      - name: Check unit test coverage
+        run: make coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heliostat-coverage-report
+          path: build/coverage/html/
+          if-no-files-found: warn
+
       - name: Build STM32 firmware
         run: make build
 

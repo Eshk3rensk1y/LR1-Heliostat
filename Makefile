@@ -236,3 +236,9 @@ test:
 
 arch-check:
 	docker run --rm -v "$(CURDIR):/workspace" -w /workspace stm32-build python3 tests/check_architecture.py
+
+
+.PHONY: coverage
+
+coverage:
+	docker run --rm -v "$(CURDIR):/workspace" -w /workspace stm32-build python3 tests/check_coverage.py
