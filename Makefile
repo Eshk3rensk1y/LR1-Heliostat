@@ -67,7 +67,10 @@ Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_tim.c \
 Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_hal_tim_ex.c \
 Core/Src/sysmem.c \
 Core/Src/syscalls.c \
-App/Src/heliostat_logic.c
+App/Src/heliostat_logic.c \
+Platform/Src/platform_io.c \
+Devices/Src/heliostat_devices.c
+
 
 # ASM sources
 ASM_SOURCES =  \
@@ -129,7 +132,10 @@ C_INCLUDES =  \
 -IDrivers/STM32C0xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32C0xx/Include \
 -IDrivers/CMSIS/Include \
--IApp/Inc
+-IApp/Inc \
+-IPlatform/Inc \
+-IDevices/Inc
+
 
 
 
