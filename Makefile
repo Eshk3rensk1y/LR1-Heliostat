@@ -231,3 +231,8 @@ monitor:
 test:
 	docker run --rm -v "$(CURDIR):/workspace" -w /workspace stm32-build sh -c "gcc -std=c11 -Wall -Wextra -Werror -IApp/Inc App/Src/heliostat_logic.c tests/test_heliostat_logic.c -o /tmp/test_heliostat && /tmp/test_heliostat"
 
+
+.PHONY: arch-check
+
+arch-check:
+	docker run --rm -v "$(CURDIR):/workspace" -w /workspace stm32-build python3 tests/check_architecture.py
