@@ -1,29 +1,70 @@
-name: Build and test
+
+name: STM32 Heliostat CI
 
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - main
+      - feat/lab2-sensor-integration
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    name: Build, Test and Architecture Check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install ARM GCC toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
-        with:
-          release: '12.2.Rel1'
-      
-      - name: Build project
-        run: make
- 
-      - name: Simulate and test with Wokwi
-        uses: wokwi/wokwi-ci-action@v1
-        with:
-          token: ${{ secrets.WOKWI_CLI_TOKEN }}
-          path: /    # directory with wokwi.toml, relative to repo's root
-          timeout: 5000
-          expect_text: 'Hello, Wokwi!'
+      - name: Check build tools
+        run: |
+          docker --version
+          make --version
 
-        
+      - name: Build Docker image
+        run: docker build -t stm32-build ./docker
+
+      - name: Check architecture dependencies
+        run: make arch-check
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Check unit test coverage
+        run: make coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heliostat-coverage-report
+          path: build/coverage/html/
+          if-no-files-found: warn
+
+      - name: Build STM32 firmware
+        run: make build
+
+      - name: Verify firmware files
+        run: |
+          test -s build/debug/build/stm32-hello-wokwi.elf
+          test -s build/debug/build/stm32-hello-wokwi.hex
+          test -s build/debug/build/stm32-hello-wokwi.bin
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32-heliostat-firmware
+          path: |
+            build/debug/build/stm32-hello-wokwi.elf
+            build/debug/build/stm32-hello-wokwi.hex
+            build/debug/build/stm32-hello-wokwi.bin
+          if-no-files-found: error
+          retention-days: 7
