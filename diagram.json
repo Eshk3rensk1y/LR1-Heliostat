@@ -63,7 +63,7 @@
       "top": 450,
       "left": 100,
       "attrs": {
-        "channelNames": "PWM_X,PWM_Y,I2C_SCL,I2C_SDA"
+        "channelNames": "PWM_X,PWM_Y,I2C_SCL,I2C_SDA,UART_TX"
       }
 }
 
@@ -75,6 +75,8 @@
     [ "logic1:D1", "nucleo:PB5", "orange", [] ],
     [ "logic1:D2", "nucleo:PB8", "blue", [] ],
     [ "logic1:D3", "nucleo:PB9", "green", [] ],
+    [ "logic1:D4", "nucleo:PA2", "purple", [] ],
+
 
     [ "$serialMonitor:TX", "nucleo:PA3", "", [] ],
     [ "$serialMonitor:RX", "nucleo:PA2", "", [] ],
